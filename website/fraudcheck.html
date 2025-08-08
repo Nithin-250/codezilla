@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FRAUDCHECK - TrustLens AI</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .fraud-card {
+            background: linear-gradient(135deg, #1a237e 0%, #303f9f 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .fraud-input {
+            background: rgba(26, 35, 126, 0.3);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            color: white;
+        }
+        .fraud-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+        .fraud-btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            transition: all 0.3s ease;
+        }
+        .fraud-btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+        .fraud-alert-safe {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            border-left: 4px solid #34d399;
+        }
+        .fraud-alert-danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-left: 4px solid #f87171;
+        }
+        .transaction-item {
+            background: rgba(26, 35, 126, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        .transaction-item:hover {
+            transform: translateX(5px);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 text-white min-h-screen">
+    <!-- Header -->
+    <header class="header relative z-50">
+        <div class="container">
+            <div class="logo">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-icon">
+                    <rect width="48" height="48" rx="8" fill="#1a237e"/>
+                    <path d="M18 32L30 16M22 32L34 16" stroke="white" stroke-width="3" stroke-linecap="round" class="logo-lines"/>
+                </svg>
+                <span class="logo-text">TRUSTLENS</span>
+            </div>
+            <nav class="nav">
+                <a href="fraudcheck.html" class="nav-link active">FRAUDCHECK</a>
+                
+            </nav>
+        </div>
+    </header>
+
+    <!-- Blue highlight line -->
+    <div class="w-full h-1 bg-gradient-to-r from-blue-500 to-purple-500"></div>
+
+    <!-- Main Content -->
+    <main class="main relative">
+        <!-- Hero Section -->
+        <section class="py-12 relative">
+            <div class="container mx-auto px-4">
+                <div class="text-center mb-12">
+                    <div class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full text-sm font-medium mb-4">
+                        🛡️ Advanced Fraud Detection
+                    </div>
+                    <h1 class="text-5xl font-bold mb-6 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                        FRAUDCHECK System
+                    </h1>
+                    <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                        Real-time AI-powered fraud detection system with behavioral analysis, 
+                        geographic monitoring, and blacklist management for Indian financial institutions.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Fraud Detection Interface -->
+        <section class="py-12">
+            <div class="container mx-auto px-4">
+                <div class="grid lg:grid-cols-2 gap-8 mb-12">
+                    <!-- Transaction Submission Form -->
+                    <div class="fraud-card p-8 rounded-2xl">
+                        <h2 class="text-2xl font-bold mb-6 flex items-center">
+                            📊 Submit Transaction Analysis
+                        </h2>
+                        <form id="fraudTransactionForm" class="space-y-4">
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Amount (₹)</label>
+                                    <input type="number" name="amount" step="0.01" required 
+                                           class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none" 
+                                           placeholder="Enter amount">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Currency</label>
+                                    <select name="currency" required class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none">
+                                        <option value="">Select Currency</option>
+                                        <option value="INR" selected>INR (₹)</option>
+                                        <option value="USD">USD ($)</option>
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="GBP">GBP (£)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Location</label>
+                                    <select name="location" required class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none">
+                                        <option value="">Select Location</option>
+                                        <option value="Chennai">Chennai</option>
+                                        <option value="Mumbai">Mumbai</option>
+                                        <option value="Delhi">Delhi</option>
+                                        <option value="Bangalore">Bangalore</option>
+                                        <option value="Kolkata">Kolkata</option>
+                                        <option value="Hyderabad">Hyderabad</option>
+                                        <option value="Pune">Pune</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Card Type</label>
+                                    <select name="card_type" required class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none">
+                                        <option value="">Select Card Type</option>
+                                        <option value="Visa">Visa</option>
+                                        <option value="Mastercard">Mastercard</option>
+                                        <option value="RuPay">RuPay</option>
+                                        <option value="American Express">American Express</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Sender Account</label>
+                                    <input type="text" name="sender_account_number" required 
+                                           class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none" 
+                                           placeholder="Enter sender account number">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Recipient Account</label>
+                                    <input type="text" name="recipient_account_number" required 
+                                           class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none" 
+                                           placeholder="Enter recipient account number">
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Transaction ID</label>
+                                <input type="text" name="transaction_id" required 
+                                       class="w-full px-4 py-3 fraud-input rounded-lg focus:outline-none" 
+                                       placeholder="Enter unique transaction ID">
+                            </div>
+                            
+                            <button type="submit" class="w-full px-6 py-4 fraud-btn-primary text-white font-semibold rounded-lg">
+                                🔍 Analyze Transaction for Fraud
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Fraud Detection Results -->
+                    <div class="fraud-card p-8 rounded-2xl">
+                        <h2 class="text-2xl font-bold mb-6 flex items-center">
+                            🎯 Detection Results
+                        </h2>
+                        <div id="fraudResult" class="text-center py-12">
+                            <div class="text-6xl mb-4">🔍</div>
+                            <p class="text-gray-400">Submit a transaction to analyze for potential fraud</p>
+                        </div>
+                        
+                        <div class="mt-6 space-y-3">
+                            <button id="checkAnomalousBtn" disabled 
+                                    class="w-full px-4 py-3 bg-orange-600 hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition">
+                                📈 Check Latest Transaction Status
+                            </button>
+                            <button id="loadAllTransactionsBtn" 
+                                    class="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition">
+                                📋 Load All Transaction History
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Transaction History -->
+                <div class="fraud-card p-8 rounded-2xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold flex items-center">
+                            📊 Transaction History & Analytics
+                        </h2>
+                        <div class="flex space-x-2">
+                            <button id="refreshHistoryBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                                🔄 Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div id="transactionHistory" class="text-center py-8">
+                        <div class="text-4xl mb-4">📈</div>
+                        <p class="text-gray-400">Transaction history will appear here</p>
+                    </div>
+                </div>
+
+                <!-- API Testing Section -->
+                <div class="fraud-card p-8 rounded-2xl mt-8">
+                    <h2 class="text-2xl font-bold mb-6 flex items-center">
+                        🔧 API Testing & Diagnostics
+                    </h2>
+                    <div class="grid md:grid-cols-3 gap-4 mb-6">
+                        <button id="testSubmitApi" class="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">
+                            🧪 Test Submit API
+                        </button>
+                        <button id="testAnomalousApi" class="px-4 py-3 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition">
+                            ⚠️ Test Anomaly API
+                        </button>
+                        <button id="testDataApi" class="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">
+                            📊 Test Data API
+                        </button>
+                    </div>
+                    <div id="apiTestResults" class="bg-gray-900 p-4 rounded-lg min-h-[200px] font-mono text-sm overflow-x-auto">
+                        <p class="text-gray-400">API test results will appear here...</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer mt-16">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <div class="logo">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-icon">
+                            <rect width="48" height="48" rx="8" fill="#1a237e"/>
+                            <path d="M18 32L30 16M22 32L34 16" stroke="white" stroke-width="3" stroke-linecap="round" class="logo-lines"/>
+                        </svg>
+                        <span class="logo-text">TRUSTLENS</span>
+                    </div>
+                    <p>AI-powered fraud detection for the Indian financial market. Secure, intelligent, and built for India.</p>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <ul>
+                        <li><a href="index.html#home">Home</a></li>
+                        <li><a href="fraudcheck.html">Fraudcheck</a></li>
+                        <li><a href="index.html#pricing">Pricing</a></li>
+                        <li><a href="index.html#contact">Contact Us</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="index.html#contact">Contact Us</a></li>
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Connect</h4>
+                    <div class="social-links">
+                        <a href="#" class="social-link">📧</a>
+                        <a href="#" class="social-link">📱</a>
+                        <a href="#" class="social-link">🔗</a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 TRUSTLENS AI ANALYST. All rights reserved. Made in India 🇮🇳</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // API Configuration
+        const API_BASE = 'http://localhost:3001';
+        
+        // Sample transaction for testing
+        const sampleTransaction = {
+            amount: 25000.00,
+            location: "Mumbai",
+            card_type: "Visa",
+            currency: "INR",
+            recipient_account_number: "9876543210", // This is blacklisted for testing
+            sender_account_number: "1234567890",
+            transaction_id: "TEST" + Date.now()
+        };
+
+        // Utility functions
+        function showResult(elementId, title, data, isSuccess = true) {
+            const element = document.getElementById(elementId);
+            const alertClass = isSuccess ? 'fraud-alert-safe' : 'fraud-alert-danger';
+            const icon = isSuccess ? '✅' : '⚠️';
+            
+            element.innerHTML = `
+                <div class="${alertClass} p-6 rounded-xl text-white">
+                    <div class="flex items-center mb-3">
+                        <span class="text-2xl mr-3">${icon}</span>
+                        <h3 class="text-xl font-semibold">${title}</h3>
+                    </div>
+                    <pre class="text-sm bg-black bg-opacity-20 p-4 rounded-lg overflow-x-auto">${typeof data === 'object' ? JSON.stringify(data, null, 2) : data}</pre>
+                </div>
+            `;
+        }
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `
+                <div class="fraud-alert-danger p-6 rounded-xl text-white">
+                    <div class="flex items-center mb-3">
+                        <span class="text-2xl mr-3">❌</span>
+                        <h3 class="text-xl font-semibold">Error</h3>
+                    </div>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        // Main transaction form submission
+        document.getElementById('fraudTransactionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            // Show processing state
+            document.getElementById('fraudResult').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="animate-spin text-6xl mb-4">⚙️</div>
+                    <p class="text-blue-400">Analyzing transaction for fraud patterns...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                const isAnomaly = result.anomalous;
+                
+                showResult('fraudResult', 
+                    isAnomaly ? 'FRAUD DETECTED!' : 'TRANSACTION SAFE', 
+                    {
+                        status: isAnomaly ? 'FRAUDULENT' : 'LEGITIMATE',
+                        transaction_id: result.transaction_id,
+                        fraud_indicators: result.reasons || [],
+                        timestamp: new Date().toLocaleString()
+                    }, 
+                    !isAnomaly
+                );
+                
+                // Enable the anomaly check button
+                document.getElementById('checkAnomalousBtn').disabled = false;
+                
+                // Clear form
+                e.target.reset();
+                
+            } catch (error) {
+                showError('fraudResult', `Connection failed: ${error.message}. Please ensure the fraud detection API server is running on port 3001.`);
+            }
+        });
+
+        // Check if last transaction was anomalous
+        document.getElementById('checkAnomalousBtn').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/anomalous`);
+                const isAnomalous = await response.json();
+                
+                showResult('fraudResult', 
+                    isAnomalous ? 'LAST TRANSACTION WAS FRAUDULENT' : 'LAST TRANSACTION WAS SAFE',
+                    {
+                        last_transaction_status: isAnomalous ? 'ANOMALOUS' : 'NORMAL',
+                        checked_at: new Date().toLocaleString()
+                    },
+                    !isAnomalous
+                );
+            } catch (error) {
+                showError('fraudResult', `Failed to check anomaly status: ${error.message}`);
+            }
+        });
+
+        // Load all transactions
+        document.getElementById('loadAllTransactionsBtn').addEventListener('click', loadTransactionHistory);
+        document.getElementById('refreshHistoryBtn').addEventListener('click', loadTransactionHistory);
+
+        async function loadTransactionHistory() {
+            document.getElementById('transactionHistory').innerHTML = `
+                <div class="text-center py-8">
+                    <div class="animate-spin text-4xl mb-4">⏳</div>
+                    <p class="text-blue-400">Loading transaction history...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`${API_BASE}/data`);
+                const transactions = await response.json();
+                
+                if (transactions.length === 0) {
+                    document.getElementById('transactionHistory').innerHTML = `
+                        <div class="text-center py-8">
+                            <div class="text-4xl mb-4">📭</div>
+                            <p class="text-gray-400">No transactions found in the system</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                const transactionCards = transactions.map(txn => {
+                    const isAnomaly = txn.anomalous;
+                    const statusColor = isAnomaly ? 'border-red-500 bg-red-900 bg-opacity-20' : 'border-green-500 bg-green-900 bg-opacity-20';
+                    const statusIcon = isAnomaly ? '🚨' : '✅';
+                    const statusText = isAnomaly ? 'FRAUD' : 'SAFE';
+                    
+                    return `
+                        <div class="transaction-item p-4 rounded-lg mb-3 ${statusColor} border-l-4">
+                            <div class="flex justify-between items-start mb-2">
+                                <div class="flex items-center">
+                                    <span class="text-xl mr-2">${statusIcon}</span>
+                                    <div>
+                                        <h4 class="font-semibold">ID: ${txn.transaction_id}</h4>
+                                        <p class="text-sm text-gray-300">${new Date(txn.timestamp).toLocaleString()}</p>
+                                    </div>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium ${isAnomaly ? 'bg-red-600' : 'bg-green-600'}">
+                                    ${statusText}
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                <div><strong>Amount:</strong> ${txn.currency} ${txn.amount}</div>
+                                <div><strong>Location:</strong> ${txn.location}</div>
+                                <div><strong>Card:</strong> ${txn.card_type}</div>
+                                <div><strong>From:</strong> ${txn.sender_account_number}</div>
+                            </div>
+                            ${txn.fraud_reasons && txn.fraud_reasons.length > 0 ? `
+                                <div class="mt-2 p-2 bg-black bg-opacity-30 rounded">
+                                    <strong class="text-red-400">Fraud Indicators:</strong>
+                                    <ul class="text-sm mt-1">
+                                        ${txn.fraud_reasons.map(reason => `<li class="text-red-300">• ${reason}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+                
+                document.getElementById('transactionHistory').innerHTML = `
+                    <div class="mb-4">
+                        <h3 class="text-lg font-semibold mb-2">Total Transactions: ${transactions.length}</h3>
+                        <div class="grid grid-cols-3 gap-4 mb-4">
+                            <div class="text-center p-3 bg-green-900 bg-opacity-30 rounded-lg">
+                                <div class="text-2xl font-bold text-green-400">${transactions.filter(t => !t.anomalous).length}</div>
+                                <div class="text-sm text-green-300">Safe</div>
+                            </div>
+                            <div class="text-center p-3 bg-red-900 bg-opacity-30 rounded-lg">
+                                <div class="text-2xl font-bold text-red-400">${transactions.filter(t => t.anomalous).length}</div>
+                                <div class="text-sm text-red-300">Fraud</div>
+                            </div>
+                            <div class="text-center p-3 bg-blue-900 bg-opacity-30 rounded-lg">
+                                <div class="text-2xl font-bold text-blue-400">${((transactions.filter(t => !t.anomalous).length / transactions.length) * 100).toFixed(1)}%</div>
+                                <div class="text-sm text-blue-300">Success Rate</div>
+                            </div>
+                        </div>
+                    </div>
+                    ${transactionCards}
+                `;
+                
+            } catch (error) {
+                document.getElementById('transactionHistory').innerHTML = `
+                    <div class="fraud-alert-danger p-6 rounded-xl">
+                        <h3 class="font-semibold mb-2">❌ Failed to load transaction history</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        // API Testing Functions
+        document.getElementById('testSubmitApi').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sampleTransaction)
+                });
+                const data = await response.json();
+                document.getElementById('apiTestResults').innerHTML = `
+                    <h4 class="text-green-400 font-bold mb-2">✅ POST /submit - Success</h4>
+                    <pre class="text-gray-300">${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('apiTestResults').innerHTML = `
+                    <h4 class="text-red-400 font-bold mb-2">❌ POST /submit - Error</h4>
+                    <pre class="text-red-300">${error.message}</pre>
+                `;
+            }
+        });
+
+        document.getElementById('testAnomalousApi').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/anomalous`);
+                const data = await response.json();
+                document.getElementById('apiTestResults').innerHTML = `
+                    <h4 class="text-green-400 font-bold mb-2">✅ GET /anomalous - Success</h4>
+                    <pre class="text-gray-300">${JSON.stringify({ is_anomalous: data }, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('apiTestResults').innerHTML = `
+                    <h4 class="text-red-400 font-bold mb-2">❌ GET /anomalous - Error</h4>
+                    <pre class="text-red-300">${error.message}</pre>
+                `;
+            }
+        });
+
+        document.getElementById('testDataApi').addEventListener('click', async () => {
+            try {
+                const response = await fetch(`${API_BASE}/data`);
+                const data = await response.json();
+                document.getElementById('apiTestResults').innerHTML = `
+                    <h4 class="text-green-400 font-bold mb-2">✅ GET /data - Success</h4>
+                    <p class="text-blue-400 mb-2">Retrieved ${data.length} transactions</p>
+                    <pre class="text-gray-300 max-h-64 overflow-y-auto">${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                document.getElementById('apiTestResults').innerHTML = `
+                    <h4 class="text-red-400 font-bold mb-2">❌ GET /data - Error</h4>
+                    <pre class="text-red-300">${error.message}</pre>
+                `;
+            }
+        });
+
+        // Auto-generate transaction ID on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const transactionIdField = document.querySelector('input[name="transaction_id"]');
+            if (transactionIdField && !transactionIdField.value) {
+                transactionIdField.value = 'TXN' + Date.now();
+            }
+        });
+    </script>
+    <script src="script.js"></script>
+</body>
+</html>
