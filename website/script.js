@@ -8,6 +8,21 @@ function scrollToSection(sectionId) {
         });
     }
 }
+const API_BASE_URL = "https://codezilla-q4hg.onrender.com";
+
+fetch(${API_BASE_URL}/send-sms, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    phone: "+91xxxxxxxxxx",
+    message: "⚠ Suspicious transaction detected!",
+  }),
+})
+.then(res => res.json())
+.then(data => console.log("SMS sent:", data))
+.catch(err => console.error("Error:", err));
 
 // Mobile menu toggle
 function toggleMobileMenu() {
@@ -286,3 +301,4 @@ window.addEventListener('load', function() {
         console.log('🇮🇳 Welcome to AI ANALYST - Built for India! 🚀');
     }, 1000);
 });
+
