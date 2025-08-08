@@ -3,11 +3,20 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 
 const app = express();
-const PORT = 3001;
+
+// Use Render's PORT or fallback to 3001 locally
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors());
+
+// Allow all origins for now — in production, replace with your Vercel domain
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'DELETE'],
+    allowedHeaders: ['Content-Type']
+}));
+
 app.use(express.static('public'));
 
 // In-memory data storage (replace with database in production)
@@ -32,9 +41,9 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
     const dLat = (lat2 - lat1) * Math.PI / 180;
     const dLng = (lng2 - lng1) * Math.PI / 180;
     const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.sin(dLat/2) ** 2 +
         Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng/2) * Math.sin(dLng/2);
+        Math.sin(dLng/2) ** 2;
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
 }
@@ -77,7 +86,7 @@ function detectFraud(transaction) {
                 currentLocation.lat, currentLocation.lng
             );
             const timeDiff = (Date.now() - lastTransaction.timestamp) / (1000 * 60 * 60); // hours
-            const maxPossibleSpeed = 500; // km/h (roughly airplane speed)
+            const maxPossibleSpeed = 500; // km/h
             
             if (distance > maxPossibleSpeed * timeDiff) {
                 fraudReasons.push('Geographically impossible travel detected');
@@ -85,7 +94,7 @@ function detectFraud(transaction) {
         }
     }
     
-    // 5. Behavioral analysis - check for unusual patterns
+    // 5. Behavioral analysis
     const userAmounts = transactions
         .filter(t => t.sender_account_number === transaction.sender_account_number)
         .map(t => t.amount);
@@ -101,7 +110,7 @@ function detectFraud(transaction) {
         }
     }
     
-    // 6. Check for rapid consecutive transactions
+    // 6. Rapid transactions
     const recentTransactions = transactions.filter(t =>
         t.sender_account_number === transaction.sender_account_number &&
         t.timestamp > Date.now() - (5 * 60 * 1000) // Last 5 minutes
@@ -115,8 +124,6 @@ function detectFraud(transaction) {
 }
 
 // API Routes
-
-// Submit transaction for fraud analysis
 app.post('/submit', (req, res) => {
     try {
         const transaction = {
@@ -125,7 +132,6 @@ app.post('/submit', (req, res) => {
             ip_address: req.ip || '127.0.0.1'
         };
         
-        // Validate required fields
         const requiredFields = ['amount', 'location', 'card_type', 'currency', 
                               'recipient_account_number', 'sender_account_number', 'transaction_id'];
         
@@ -135,24 +141,19 @@ app.post('/submit', (req, res) => {
             }
         }
         
-        // Run fraud detection
         const fraudReasons = detectFraud(transaction);
         const isAnomalous = fraudReasons.length > 0;
         
-        // Add fraud info to transaction
         transaction.anomalous = isAnomalous;
         transaction.fraud_reasons = fraudReasons;
         
-        // Auto-blacklist accounts if fraud detected
         if (isAnomalous) {
             inMemoryBlacklist.add(transaction.recipient_account_number);
             console.log(`🚨 FRAUD DETECTED: Auto-blacklisted account ${transaction.recipient_account_number}`);
         }
         
-        // Store transaction
         transactions.push(transaction);
         
-        // Log transaction
         console.log(`${isAnomalous ? '🚨' : '✅'} Transaction ${transaction.transaction_id}: ${isAnomalous ? 'FRAUD' : 'SAFE'}`);
         if (fraudReasons.length > 0) {
             console.log(`   Reasons: ${fraudReasons.join(', ')}`);
@@ -171,17 +172,14 @@ app.post('/submit', (req, res) => {
     }
 });
 
-// Check if last transaction was anomalous
 app.get('/anomalous', (req, res) => {
     if (transactions.length === 0) {
         return res.json(false);
     }
-    
     const lastTransaction = transactions[transactions.length - 1];
     res.json(lastTransaction.anomalous || false);
 });
 
-// Get all transaction data
 app.get('/data', (req, res) => {
     const sanitizedTransactions = transactions.map(t => ({
         transaction_id: t.transaction_id,
@@ -195,11 +193,9 @@ app.get('/data', (req, res) => {
         fraud_reasons: t.fraud_reasons || [],
         timestamp: new Date(t.timestamp).toISOString()
     }));
-    
     res.json(sanitizedTransactions);
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ 
         status: 'healthy',
@@ -209,7 +205,6 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Get blacklist status
 app.get('/blacklist', (req, res) => {
     res.json({
         accounts: Array.from(inMemoryBlacklist),
@@ -217,13 +212,11 @@ app.get('/blacklist', (req, res) => {
     });
 });
 
-// Add account to blacklist
 app.post('/blacklist', (req, res) => {
     const { account_number } = req.body;
     if (!account_number) {
         return res.status(400).json({ error: 'Account number required' });
     }
-    
     inMemoryBlacklist.add(account_number);
     res.json({ 
         message: `Account ${account_number} added to blacklist`,
@@ -231,7 +224,6 @@ app.post('/blacklist', (req, res) => {
     });
 });
 
-// Remove account from blacklist
 app.delete('/blacklist/:account', (req, res) => {
     const { account } = req.params;
     inMemoryBlacklist.delete(account);
@@ -241,13 +233,12 @@ app.delete('/blacklist/:account', (req, res) => {
     });
 });
 
-// Clear all data (for testing)
 app.delete('/clear', (req, res) => {
     transactions = [];
     res.json({ message: 'All transaction data cleared' });
 });
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ error: 'Something went wrong!' });
@@ -255,15 +246,14 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, () => {
-    console.log(`🚀 TrustLens Fraud Detection API running on http://localhost:${PORT}`);
+    console.log(`🚀 TrustLens Fraud Detection API running on port ${PORT}`);
     console.log(`🛡️  Fraud detection algorithms loaded`);
     console.log(`📊 Database: In-memory storage (${transactions.length} transactions)`);
     console.log(`🚨 Blacklisted accounts: ${inMemoryBlacklist.size}`);
-    console.log(`\n📍 Supported locations: ${Object.keys(locationLookup).join(', ')}`);
-    console.log(`\n🇮🇳 Ready for Indian financial fraud detection!`);
+    console.log(`📍 Supported locations: ${Object.keys(locationLookup).join(', ')}`);
+    console.log(`🇮🇳 Ready for Indian financial fraud detection!`);
 });
 
-// Graceful shutdown
 process.on('SIGINT', () => {
     console.log('\n🛑 Shutting down fraud detection API...');
     console.log(`📊 Final stats: ${transactions.length} transactions processed`);
