@@ -4,11 +4,11 @@
   "description": "AI-powered fraud detection API for TrustLens financial analysis platform",
   "main": "fraud-api.js",
   "scripts": {
-    "start": "node fraud-api.js",
-    "dev": "nodemon fraud-api.js",
-    "build": "react-scripts build",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "start": "node fraud-api.js",
+  "dev": "nodemon fraud-api.js",
+  "build": "echo 'No build step for backend'"
+},
+
   "keywords": [
     "fraud-detection",
     "fintech",
@@ -35,3 +35,4 @@
     "npm": ">=8.0.0"
   }
 }
+
