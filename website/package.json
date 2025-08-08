@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node fraud-api.js",
     "dev": "nodemon fraud-api.js",
+    "build": "react-scripts build"
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -34,3 +35,4 @@
     "npm": ">=8.0.0"
   }
 }
+
