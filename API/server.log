@@ -1,0 +1,17 @@
+Server is running on port 3001
+Anomalous: false
+Transaction details: 
+MongoDB connection failed, running in memory mode: connect ECONNREFUSED ::1:27017, connect ECONNREFUSED 127.0.0.1:27017
+Attempting to send SMS to: +10000000000
+From: +12025550123
+Message: ⚠️ FRAUD ALERT!
+Transaction ID: TXN_LOCAL_1
+Amount: INR 1000
+Location: Mumbai
+Reasons: Blacklisted Recipient: 1111222233
+Time: Sat Aug 09 2025 05:57:00 GMT+0000 (Coordinated Universal Time)
+If this wasn't you, contact us immediately!
+❌ SMS sending failed: Authenticate
+Error code: 20003
+Anomalous: true
+Transaction details: [object Object]

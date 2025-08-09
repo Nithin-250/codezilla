@@ -1,0 +1,2 @@
+127.0.0.1 - - [09/Aug/2025 05:56:57] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [09/Aug/2025 05:56:57] "GET /fraudcheck.html HTTP/1.1" 200 -
