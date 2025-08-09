@@ -15,14 +15,23 @@ const port = 3001;
 let client, db, collection, blacklistCollection;
 let mongoConnected = false;
 
-try {
-    client = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
-    db = client.db(process.env.MONGO_DB_NAME || 'fraud_detection');
-    collection = db.collection(process.env.MONGO_COLLECTION_NAME || 'transactions');
-    blacklistCollection = db.collection("blacklist");
-    mongoConnected = true;
-} catch (error) {
-    console.log('MongoDB not available, running in memory mode');
+if (process.env.MONGO_URI) {
+    (async () => {
+        try {
+            client = new MongoClient(process.env.MONGO_URI);
+            await client.connect();
+            db = client.db(process.env.MONGO_DB_NAME || 'fraud_detection');
+            collection = db.collection(process.env.MONGO_COLLECTION_NAME || 'transactions');
+            blacklistCollection = db.collection('blacklist');
+            mongoConnected = true;
+            console.log('Connected to MongoDB');
+        } catch (error) {
+            console.log('MongoDB connection failed, running in memory mode:', error.message);
+            mongoConnected = false;
+        }
+    })();
+} else {
+    console.log('MONGO_URI not set, running in memory mode');
     mongoConnected = false;
 }
 
