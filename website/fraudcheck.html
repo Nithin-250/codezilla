@@ -290,9 +290,12 @@
 
     <script>
         // API Configuration - automatically detects environment
-        const API_BASE = window.location.hostname === 'localhost' 
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
             ? 'http://localhost:3001' 
             : 'https://codezilla-1-1jc8.onrender.com';
+        
+        console.log('Environment detected:', window.location.hostname);
+        console.log('Using API_BASE:', API_BASE);
         
         // Sample transaction for testing
         const sampleTransaction = {
@@ -351,13 +354,28 @@
             `;
             
             try {
+                console.log('Submitting to API:', `${API_BASE}/submit`);
+                console.log('Data:', data);
+                
                 const response = await fetch(`${API_BASE}/submit`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors',
                     body: JSON.stringify(data)
                 });
                 
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
+                console.log('API Result:', result);
                 const isAnomaly = result.anomalous;
                 
                 showResult('fraudResult', 
@@ -378,7 +396,9 @@
                 e.target.reset();
                 
             } catch (error) {
-                showError('fraudResult', `Connection failed: ${error.message}. Please ensure the fraud detection API server is running on port 3001.`);
+                console.error('API Error:', error);
+                const apiUrl = window.location.hostname === 'localhost' ? 'port 3001' : 'the production server';
+                showError('fraudResult', `Connection failed: ${error.message}. Please ensure the fraud detection API server is running on ${apiUrl}. Current API: ${API_BASE}`);
             }
         });
 
