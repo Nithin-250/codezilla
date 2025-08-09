@@ -7,7 +7,26 @@ const PORT = 3001;
 
 // Middleware
 app.use(bodyParser.json());
-app.use(cors());
+const allowedOrigins = [
+  'https://codezills-bj8a4u2mk-nithins-projects-3e5c86e3.vercel.app/',  // replace with your actual frontend URL(s)
+  
+];
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // allow requests with no origin (like curl or Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],  // methods you support
+  allowedHeaders: ['Content-Type', 'Authorization'],  // adjust if you need other headers
+  credentials: false  // set to true if you use cookies or HTTP auth
+}));
+
 app.use(express.static('public'));
 
 // In-memory data storage (replace with database in production)
@@ -269,3 +288,4 @@ process.on('SIGINT', () => {
     console.log(`📊 Final stats: ${transactions.length} transactions processed`);
     process.exit(0);
 });
+
