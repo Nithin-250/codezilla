@@ -9,7 +9,7 @@ import twilio from 'twilio';
 dotenv.config();
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // MongoDB setup (with fallback)
 let client, db, collection, blacklistCollection;
@@ -292,6 +292,6 @@ app.post("/submit", async (req, res) => {
 })
 
 app.listen(port, () => {
-  console.log("Server is running on port 3001");
+  console.log(`Server is running on port ${port}`);
 });
 

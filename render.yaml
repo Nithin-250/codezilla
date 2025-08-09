@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: trustlens-fraud-api
+    env: node
+    plan: free
+    buildCommand: cd API && npm install
+    startCommand: cd API && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        value: mongodb://localhost:27017
+      - key: MONGO_DB_NAME
+        value: fraud_detection
+      - key: MONGO_COLLECTION_NAME
+        value: transactions
+      - key: TWILIO_ACCOUNT_SID
+        value: AC32971a3cf32a20364bc2f0e6e8bfeb06
+      - key: TWILIO_AUTH_TOKEN
+        value: 00217da82ce538e5a5aea68cd8077490
+      - key: TWILIO_NUMBER
+        value: +12025550123
