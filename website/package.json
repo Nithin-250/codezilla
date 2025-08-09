@@ -1,14 +1,14 @@
 {
   "name": "trustlens-fraud-detection-api",
   "version": "1.0.0",
+  "type": "module",
   "description": "AI-powered fraud detection API for TrustLens financial analysis platform",
   "main": "fraud-api.js",
   "scripts": {
-  "start": "node fraud-api.js",
-  "dev": "nodemon fraud-api.js",
-  "build": "echo 'No build step for backend'"
-},
-
+    "start": "node fraud-api.js",
+    "dev": "nodemon fraud-api.js",
+    "build": "echo 'No build step for backend'"
+  },
   "keywords": [
     "fraud-detection",
     "fintech",
@@ -25,7 +25,9 @@
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "mongodb": "^6.3.0"
+    "mongodb": "^6.3.0",
+    "geolib": "^3.3.4",
+    "twilio": "^5.8.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
@@ -35,4 +37,3 @@
     "npm": ">=8.0.0"
   }
 }
-
