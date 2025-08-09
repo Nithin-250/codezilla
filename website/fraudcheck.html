@@ -290,7 +290,10 @@
 
     <script>
         // API Configuration
-        const API_BASE = 'http://localhost:3001';
+        const API_BASE = window.location.hostname === 'localhost' 
+    ? 'http://localhost:3001' 
+    : 'https://codezilla-1-1jc8.onrender.com/';
+
         
         // Sample transaction for testing
         const sampleTransaction = {
@@ -558,4 +561,5 @@
     </script>
     <script src="script.js"></script>
 </body>
+
 </html>
