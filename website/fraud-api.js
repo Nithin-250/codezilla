@@ -6,11 +6,7 @@ const app = express();
 const PORT = 3001;
 
 // Middleware
-app.use(bodyParser.json());
-const allowedOrigins = [
-  'https://codezills-bj8a4u2mk-nithins-projects-3e5c86e3.vercel.app/',  // replace with your actual frontend URL(s)
-  
-];
+app.use(cors());
 
 app.use(cors({
   origin: function(origin, callback) {
@@ -288,4 +284,5 @@ process.on('SIGINT', () => {
     console.log(`📊 Final stats: ${transactions.length} transactions processed`);
     process.exit(0);
 });
+
 
