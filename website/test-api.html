@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1a1a1a;
+            color: white;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .success { background: #004d00; }
+        .error { background: #4d0000; }
+        .info { background: #003d4d; }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #0066cc;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background: #0052a3; }
+    </style>
+</head>
+<body>
+    <h1>TrustLens API Connection Test</h1>
+    
+    <div id="environment" class="test-result info"></div>
+    
+    <button onclick="testBasicConnection()">Test Basic Connection</button>
+    <button onclick="testDataEndpoint()">Test Data Endpoint</button>
+    <button onclick="testSubmitEndpoint()">Test Submit Endpoint</button>
+    <button onclick="testCORS()">Test CORS</button>
+    
+    <div id="results"></div>
+
+    <script>
+        // API Configuration
+        const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'http://localhost:3001' 
+            : 'https://codezilla-1-1jc8.onrender.com';
+        
+        document.getElementById('environment').innerHTML = `
+            <strong>Environment:</strong> ${window.location.hostname}<br>
+            <strong>API Base:</strong> ${API_BASE}
+        `;
+
+        function addResult(message, type = 'info') {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.innerHTML = message;
+            document.getElementById('results').appendChild(div);
+        }
+
+        async function testBasicConnection() {
+            addResult('Testing basic connection...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/data`);
+                if (response.ok) {
+                    const data = await response.json();
+                    addResult(`✅ Basic connection successful! Data: ${JSON.stringify(data)}`, 'success');
+                } else {
+                    addResult(`❌ Connection failed: ${response.status} ${response.statusText}`, 'error');
+                }
+            } catch (error) {
+                addResult(`❌ Connection error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDataEndpoint() {
+            addResult('Testing /data endpoint...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/data`, {
+                    method: 'GET',
+                    headers: { 'Accept': 'application/json' },
+                    mode: 'cors'
+                });
+                
+                const data = await response.json();
+                addResult(`✅ Data endpoint working! Response: ${JSON.stringify(data)}`, 'success');
+            } catch (error) {
+                addResult(`❌ Data endpoint error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testSubmitEndpoint() {
+            addResult('Testing /submit endpoint...', 'info');
+            const testData = {
+                amount: "100",
+                location: "Mumbai",
+                card_type: "Visa",
+                currency: "USD",
+                recipient_account_number: "1234567890",
+                sender_account_number: "1111111111",
+                transaction_id: "TEST_CONNECTION"
+            };
+
+            try {
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors',
+                    body: JSON.stringify(testData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                addResult(`✅ Submit endpoint working! Result: ${JSON.stringify(result)}`, 'success');
+            } catch (error) {
+                addResult(`❌ Submit endpoint error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testCORS() {
+            addResult('Testing CORS preflight...', 'info');
+            try {
+                const response = await fetch(`${API_BASE}/submit`, {
+                    method: 'OPTIONS',
+                    headers: { 'Origin': window.location.origin },
+                    mode: 'cors'
+                });
+                
+                addResult(`✅ CORS preflight successful! Status: ${response.status}`, 'success');
+            } catch (error) {
+                addResult(`❌ CORS error: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

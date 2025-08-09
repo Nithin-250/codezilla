@@ -9,22 +9,29 @@ import twilio from 'twilio';
 dotenv.config();
 
 const app = express();
-const port = 3001;
+const port = process.env.PORT || 3001;
 
 // MongoDB setup (with fallback)
 let client, db, collection, blacklistCollection;
 let mongoConnected = false;
 
-try {
-    client = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
-    db = client.db(process.env.MONGO_DB_NAME || 'fraud_detection');
-    collection = db.collection(process.env.MONGO_COLLECTION_NAME || 'transactions');
-    blacklistCollection = db.collection("blacklist");
-    mongoConnected = true;
-} catch (error) {
-    console.log('MongoDB not available, running in memory mode');
-    mongoConnected = false;
+async function initMongoDB() {
+    try {
+        client = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
+        await client.connect();
+        db = client.db(process.env.MONGO_DB_NAME || 'fraud_detection');
+        collection = db.collection(process.env.MONGO_COLLECTION_NAME || 'transactions');
+        blacklistCollection = db.collection("blacklist");
+        mongoConnected = true;
+        console.log('✅ MongoDB connected successfully');
+    } catch (error) {
+        console.log('❌ MongoDB not available, running in memory mode:', error.message);
+        mongoConnected = false;
+    }
 }
+
+// Initialize MongoDB connection (don't await to avoid blocking)
+initMongoDB();
 
 // In-memory blacklist for testing without MongoDB
 const inMemoryBlacklist = new Set(["9876543210", "1111222233"]);
@@ -82,9 +89,31 @@ async function sendSMS(phone, message) {
     }
 }
 
-app.use(cors());
+// CORS configuration for production
+app.use(cors({
+    origin: [
+        'http://localhost:8000',
+        'http://localhost:3000',
+        'https://trustlens-fraud-detection.vercel.app',
+        'https://codezilla-1tjl.vercel.app',
+        /\.vercel\.app$/,
+        /\.netlify\.app$/
+    ],
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+
+// Handle preflight requests
+app.options('*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.status(200).send();
+});
 
 // Fraud detection functions
 function detectBehavioralAnomaly(pastTxns, currentAmount, windowSize = 5, zThresh = 2.5) {
@@ -160,10 +189,14 @@ app.post("/send-sms", async (req, res) => {
 
 app.post("/submit", async (req, res) => {
     try {
+        console.log("Received submission:", req.body);
+        
         const now = new Date();
         const clientIP = getClientIP(req);
         let reasons = [];
         let isAnomaly = false;
+
+        console.log("Client IP:", clientIP);
 
         // Check blacklisted IP
         if (BLACKLISTED_IPS.has(clientIP)) {
@@ -171,6 +204,7 @@ app.post("/submit", async (req, res) => {
             isAnomaly = true;
         }
 
+        console.log("Checking blacklisted account...");
         // Check blacklisted recipient account
         let blacklistedAccount = false;
         if (mongoConnected) {
@@ -181,6 +215,8 @@ app.post("/submit", async (req, res) => {
         } else {
             blacklistedAccount = inMemoryBlacklist.has(req.body.recipient_account_number);
         }
+        
+        console.log("Blacklisted account check result:", blacklistedAccount);
         
         if (blacklistedAccount) {
             reasons.push(`Blacklisted Recipient: ${req.body.recipient_account_number}`);
@@ -193,6 +229,7 @@ app.post("/submit", async (req, res) => {
             isAnomaly = true;
         }
 
+        console.log("Getting past transactions...");
         // Get past transactions for behavioral analysis
         let pastTxns = [];
         if (mongoConnected) {
@@ -202,12 +239,15 @@ app.post("/submit", async (req, res) => {
             pastTxns = transaction_details.filter(txn => txn.card_type === req.body.card_type);
         }
 
+        console.log("Past transactions count:", pastTxns.length);
+
         // Behavioral anomaly detection
         if (detectBehavioralAnomaly(pastTxns, parseFloat(req.body.amount))) {
             reasons.push("Abnormal Amount (Behavioral)");
             isAnomaly = true;
         }
 
+        console.log("Checking geo drift...");
         // Geo drift detection
         if (detectGeoDrift(req.body.card_type, req.body.location)) {
             reasons.push("Geo Drift Detected");
@@ -219,6 +259,7 @@ app.post("/submit", async (req, res) => {
             lastKnownLocation[req.body.card_type] = req.body.location;
         }
 
+        console.log("Creating transaction data...");
         const data = {
             amount: parseFloat(req.body.amount),
             location: req.body.location,
@@ -233,6 +274,8 @@ app.post("/submit", async (req, res) => {
             fraud_reasons: reasons
         };
 
+        console.log("Transaction data created:", data);
+
         // Store in MongoDB (if available)
         if (mongoConnected) {
             await collection.insertOne(data);
@@ -241,6 +284,7 @@ app.post("/submit", async (req, res) => {
         // Add to local array
         transaction_details.push(data);
 
+        console.log("Checking if should blacklist...");
         // Blacklist recipient if anomalous
         if (isAnomaly && !blacklistedAccount) {
             if (mongoConnected) {
@@ -255,23 +299,21 @@ app.post("/submit", async (req, res) => {
             }
         }
 
-        // Store phone number with transaction for later SMS
-        data.phone = req.body.phone || "+916374672882";
-
-        res.json({ 
-            success: true, 
-            anomalous: isAnomaly, 
+        console.log("Sending response...");
+        res.json({
+            anomalous: isAnomaly,
             reasons: reasons,
+            graph_score: isAnomaly ? 0.8 : 0.2,
             transaction_id: req.body.transaction_id
         });
-        
     } catch (error) {
-        console.error('Error processing transaction:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Submit endpoint error:', error);
+        console.error('Error stack:', error.stack);
+        res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 })
 
 app.listen(port, () => {
-  console.log("Server is running on port 3001");
+  console.log(`Server is running on port ${port}`);
 });
 
