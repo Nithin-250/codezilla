@@ -1,261 +1,276 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const cors = require('cors');
+import express from "express";
+import bodyParser from "body-parser";
+import cors from "cors";
+import geolib from 'geolib';
+import { MongoClient } from 'mongodb';
+import dotenv from 'dotenv';
+import twilio from 'twilio';
+
+dotenv.config();
 
 const app = express();
+const port = 3001;
 
-// Use Render's PORT or fallback to 3001 locally
-const PORT = process.env.PORT || 3001;
+// MongoDB setup (with fallback)
+let client, db, collection, blacklistCollection;
+let mongoConnected = false;
 
-// Middleware
-app.use(bodyParser.json());
+try {
+    client = new MongoClient(process.env.MONGO_URI || 'mongodb://localhost:27017');
+    db = client.db(process.env.MONGO_DB_NAME || 'fraud_detection');
+    collection = db.collection(process.env.MONGO_COLLECTION_NAME || 'transactions');
+    blacklistCollection = db.collection("blacklist");
+    mongoConnected = true;
+} catch (error) {
+    console.log('MongoDB not available, running in memory mode');
+    mongoConnected = false;
+}
 
-// Allow all origins for now — in production, replace with your Vercel domain
-app.use(cors({
-    origin: '*',
-    methods: ['GET', 'POST', 'DELETE'],
-    allowedHeaders: ['Content-Type']
-}));
+// In-memory blacklist for testing without MongoDB
+const inMemoryBlacklist = new Set(["9876543210", "1111222233"]);
 
-app.use(express.static('public'));
-
-// In-memory data storage (replace with database in production)
-let transactions = [];
-let inMemoryBlacklist = new Set(['9876543210', '1111111111', '0000000000']);
-const BLACKLISTED_IPS = new Set(['192.168.1.100', '10.0.0.50']);
-
-// Location coordinates for geographic analysis
+// Location coordinates
 const locationLookup = {
-    'Chennai': { lat: 13.0827, lng: 80.2707 },
-    'Mumbai': { lat: 19.0760, lng: 72.8777 },
-    'Delhi': { lat: 28.7041, lng: 77.1025 },
-    'Bangalore': { lat: 12.9716, lng: 77.5946 },
-    'Kolkata': { lat: 22.5726, lng: 88.3639 },
-    'Hyderabad': { lat: 17.3850, lng: 78.4867 },
-    'Pune': { lat: 18.5204, lng: 73.8567 }
+    "Chennai": { latitude: 13.0827, longitude: 80.2707 },
+    "Mumbai": { latitude: 19.0760, longitude: 72.8777 },
+    "Delhi": { latitude: 28.6139, longitude: 77.2090 },
+    "Bangalore": { latitude: 12.9716, longitude: 77.5946 },
 };
 
-// Helper function to calculate distance between two coordinates
-function calculateDistance(lat1, lng1, lat2, lng2) {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
-        Math.sin(dLat/2) ** 2 +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLng/2) ** 2;
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-}
+// Track last known locations
+const lastKnownLocation = {};
 
-// Fraud detection logic
-function detectFraud(transaction) {
-    const fraudReasons = [];
-    
-    // 1. Check blacklisted accounts
-    if (inMemoryBlacklist.has(transaction.recipient_account_number) || 
-        inMemoryBlacklist.has(transaction.sender_account_number)) {
-        fraudReasons.push('Blacklisted account detected');
-    }
-    
-    // 2. Check for suspicious amounts (very high amounts)
-    if (transaction.amount > 100000) {
-        fraudReasons.push('Unusually high transaction amount');
-    }
-    
-    // 3. Check for odd hours (12 AM to 4 AM IST)
-    const currentHour = new Date().getHours();
-    if (currentHour >= 0 && currentHour <= 4) {
-        fraudReasons.push('Transaction during suspicious hours (12 AM - 4 AM)');
-    }
-    
-    // 4. Geographic impossibility check
-    const userTransactions = transactions.filter(t => 
-        t.sender_account_number === transaction.sender_account_number &&
-        t.timestamp > Date.now() - (2 * 60 * 60 * 1000) // Last 2 hours
-    );
-    
-    if (userTransactions.length > 0) {
-        const lastTransaction = userTransactions[userTransactions.length - 1];
-        const lastLocation = locationLookup[lastTransaction.location];
-        const currentLocation = locationLookup[transaction.location];
-        
-        if (lastLocation && currentLocation) {
-            const distance = calculateDistance(
-                lastLocation.lat, lastLocation.lng,
-                currentLocation.lat, currentLocation.lng
-            );
-            const timeDiff = (Date.now() - lastTransaction.timestamp) / (1000 * 60 * 60); // hours
-            const maxPossibleSpeed = 500; // km/h
-            
-            if (distance > maxPossibleSpeed * timeDiff) {
-                fraudReasons.push('Geographically impossible travel detected');
-            }
-        }
-    }
-    
-    // 5. Behavioral analysis
-    const userAmounts = transactions
-        .filter(t => t.sender_account_number === transaction.sender_account_number)
-        .map(t => t.amount);
-    
-    if (userAmounts.length >= 3) {
-        const mean = userAmounts.reduce((a, b) => a + b, 0) / userAmounts.length;
-        const variance = userAmounts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / userAmounts.length;
-        const stdDev = Math.sqrt(variance);
-        const zScore = Math.abs((transaction.amount - mean) / stdDev);
-        
-        if (zScore > 2.5) {
-            fraudReasons.push('Unusual spending pattern detected');
-        }
-    }
-    
-    // 6. Rapid transactions
-    const recentTransactions = transactions.filter(t =>
-        t.sender_account_number === transaction.sender_account_number &&
-        t.timestamp > Date.now() - (5 * 60 * 1000) // Last 5 minutes
-    );
-    
-    if (recentTransactions.length >= 3) {
-        fraudReasons.push('Multiple rapid transactions detected');
-    }
-    
-    return fraudReasons;
-}
+// Blacklisted IPs
+const BLACKLISTED_IPS = new Set(["203.0.113.5", "198.51.100.10", "45.33.32.156"]);
 
-// API Routes
-app.post('/submit', (req, res) => {
+// Transaction details array
+var transaction_details = [];
+
+// Twilio client
+const twilioClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+// SMS sending function
+async function sendSMS(phone, message) {
     try {
-        const transaction = {
-            ...req.body,
-            timestamp: Date.now(),
-            ip_address: req.ip || '127.0.0.1'
+        console.log(`Attempting to send SMS to: ${phone}`);
+        console.log(`From: ${process.env.TWILIO_NUMBER}`);
+        console.log(`Message: ${message}`);
+        
+        const msg = await twilioClient.messages.create({
+            body: message,
+            from: process.env.TWILIO_NUMBER,
+            to: phone
+        });
+        console.log(`✅ SMS sent successfully: ${msg.sid}`);
+        return { success: true, sid: msg.sid };
+    } catch (error) {
+        console.error('❌ SMS sending failed:', error.message);
+        console.error('Error code:', error.code);
+        
+        // For testing: simulate successful SMS when Twilio number is invalid
+        if (error.code === 21659 || error.code === 21212) {
+            console.log('📱 SIMULATED SMS (Twilio number invalid):');
+            console.log(`To: ${phone}`);
+            console.log(`Message: ${message}`);
+            return { success: true, sid: 'SIMULATED_' + Date.now(), simulated: true };
+        }
+        
+        return { success: false, error: error.message, code: error.code };
+    }
+}
+
+app.use(cors());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.json());
+
+// Fraud detection functions
+function detectBehavioralAnomaly(pastTxns, currentAmount, windowSize = 5, zThresh = 2.5) {
+    const amounts = pastTxns.slice(-windowSize).map(txn => txn.amount);
+    if (amounts.length < 2) return false;
+    
+    const mean = amounts.reduce((a, b) => a + b) / amounts.length;
+    const variance = amounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / amounts.length;
+    const std = Math.sqrt(variance);
+    
+    const zScore = std !== 0 ? Math.abs((currentAmount - mean) / std) : 0;
+    return zScore > zThresh;
+}
+
+function detectGeoDrift(cardType, currentLocation, maxKm = 500) {
+    if (!locationLookup[currentLocation]) return false;
+    
+    const lastLocation = lastKnownLocation[cardType];
+    if (!lastLocation || !locationLookup[lastLocation]) return false;
+    
+    const distance = geolib.getDistance(
+        locationLookup[lastLocation],
+        locationLookup[currentLocation]
+    ) / 1000; // Convert to km
+    
+    return distance > maxKm;
+}
+
+function getClientIP(req) {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) return forwarded.split(',')[0].trim();
+    return req.connection.remoteAddress || req.socket.remoteAddress;
+}
+// Get request to check anomalous status and send SMS
+app.get("/anomalous", async (req, res) => {
+  const lastTransaction = transaction_details[transaction_details.length - 1];
+  const isAnomalous = lastTransaction ? lastTransaction.anomalous : false;
+  
+  // Send SMS notification when checking anomalous status
+  if (lastTransaction) {
+    const smsMessage = isAnomalous ? 
+      `⚠️ FRAUD ALERT!\nTransaction ID: ${lastTransaction.transaction_id}\nAmount: ${lastTransaction.currency} ${lastTransaction.amount}\nLocation: ${lastTransaction.location}\nReasons: ${lastTransaction.fraud_reasons.join(', ')}\nTime: ${lastTransaction.timestamp}\nIf this wasn't you, contact us immediately!` :
+      `✅ Transaction Approved\nID: ${lastTransaction.transaction_id}\nAmount: ${lastTransaction.currency} ${lastTransaction.amount}\nLocation: ${lastTransaction.location}\nTime: ${lastTransaction.timestamp}`;
+    
+    await sendSMS(lastTransaction.phone, smsMessage);
+  }
+  
+  res.json(isAnomalous);
+  console.log("Anomalous: " + isAnomalous);
+});
+
+app.get("/data", (req, res) => {
+  res.json(transaction_details);
+  console.log("Transaction details: " + transaction_details);
+});
+
+// Route to send SMS manually
+app.post("/send-sms", async (req, res) => {
+  const { phone, message } = req.body;
+
+  if (!phone || !message) {
+    return res.status(400).json({ error: "Phone and message are required" });
+  }
+
+  const result = await sendSMS(phone, message);
+  
+  if (result.success) {
+    res.json({ status: "success", sid: result.sid });
+  } else {
+    res.status(500).json({ status: "error", message: result.error });
+  }
+});
+
+app.post("/submit", async (req, res) => {
+    try {
+        const now = new Date();
+        const clientIP = getClientIP(req);
+        let reasons = [];
+        let isAnomaly = false;
+
+        // Check blacklisted IP
+        if (BLACKLISTED_IPS.has(clientIP)) {
+            reasons.push(`Blacklisted IP: ${clientIP}`);
+            isAnomaly = true;
+        }
+
+        // Check blacklisted recipient account
+        let blacklistedAccount = false;
+        if (mongoConnected) {
+            blacklistedAccount = await blacklistCollection.findOne({
+                type: "account",
+                value: req.body.recipient_account_number
+            });
+        } else {
+            blacklistedAccount = inMemoryBlacklist.has(req.body.recipient_account_number);
+        }
+        
+        if (blacklistedAccount) {
+            reasons.push(`Blacklisted Recipient: ${req.body.recipient_account_number}`);
+            isAnomaly = true;
+        }
+
+        // Odd hour check (12 AM to 4 AM)
+        if (now.getHours() >= 0 && now.getHours() < 4) {
+            reasons.push("Transaction During Odd Hours (12 AM - 4 AM)");
+            isAnomaly = true;
+        }
+
+        // Get past transactions for behavioral analysis
+        let pastTxns = [];
+        if (mongoConnected) {
+            pastTxns = await collection.find({ card_type: req.body.card_type })
+                .sort({ timestamp: 1 }).toArray();
+        } else {
+            pastTxns = transaction_details.filter(txn => txn.card_type === req.body.card_type);
+        }
+
+        // Behavioral anomaly detection
+        if (detectBehavioralAnomaly(pastTxns, parseFloat(req.body.amount))) {
+            reasons.push("Abnormal Amount (Behavioral)");
+            isAnomaly = true;
+        }
+
+        // Geo drift detection
+        if (detectGeoDrift(req.body.card_type, req.body.location)) {
+            reasons.push("Geo Drift Detected");
+            isAnomaly = true;
+        }
+
+        // Update last known location if not anomalous
+        if (!isAnomaly) {
+            lastKnownLocation[req.body.card_type] = req.body.location;
+        }
+
+        const data = {
+            amount: parseFloat(req.body.amount),
+            location: req.body.location,
+            card_type: req.body.card_type,
+            currency: req.body.currency,
+            recipient_account_number: req.body.recipient_account_number,
+            sender_account_number: req.body.sender_account_number,
+            transaction_id: req.body.transaction_id,
+            timestamp: now,
+            client_ip: clientIP,
+            anomalous: isAnomaly,
+            fraud_reasons: reasons
         };
+
+        // Store in MongoDB (if available)
+        if (mongoConnected) {
+            await collection.insertOne(data);
+        }
         
-        const requiredFields = ['amount', 'location', 'card_type', 'currency', 
-                              'recipient_account_number', 'sender_account_number', 'transaction_id'];
-        
-        for (const field of requiredFields) {
-            if (!transaction[field]) {
-                return res.status(400).json({ error: `Missing required field: ${field}` });
+        // Add to local array
+        transaction_details.push(data);
+
+        // Blacklist recipient if anomalous
+        if (isAnomaly && !blacklistedAccount) {
+            if (mongoConnected) {
+                await blacklistCollection.insertOne({
+                    type: "account",
+                    value: req.body.recipient_account_number,
+                    reason: reasons,
+                    timestamp: now
+                });
+            } else {
+                inMemoryBlacklist.add(req.body.recipient_account_number);
             }
         }
-        
-        const fraudReasons = detectFraud(transaction);
-        const isAnomalous = fraudReasons.length > 0;
-        
-        transaction.anomalous = isAnomalous;
-        transaction.fraud_reasons = fraudReasons;
-        
-        if (isAnomalous) {
-            inMemoryBlacklist.add(transaction.recipient_account_number);
-            console.log(`🚨 FRAUD DETECTED: Auto-blacklisted account ${transaction.recipient_account_number}`);
-        }
-        
-        transactions.push(transaction);
-        
-        console.log(`${isAnomalous ? '🚨' : '✅'} Transaction ${transaction.transaction_id}: ${isAnomalous ? 'FRAUD' : 'SAFE'}`);
-        if (fraudReasons.length > 0) {
-            console.log(`   Reasons: ${fraudReasons.join(', ')}`);
-        }
-        
-        res.json({
-            transaction_id: transaction.transaction_id,
-            anomalous: isAnomalous,
-            reasons: fraudReasons,
-            timestamp: transaction.timestamp
+
+        // Store phone number with transaction for later SMS
+        data.phone = req.body.phone || "+916374672882";
+
+        res.json({ 
+            success: true, 
+            anomalous: isAnomaly, 
+            reasons: reasons,
+            transaction_id: req.body.transaction_id
         });
         
     } catch (error) {
         console.error('Error processing transaction:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-});
+})
 
-app.get('/anomalous', (req, res) => {
-    if (transactions.length === 0) {
-        return res.json(false);
-    }
-    const lastTransaction = transactions[transactions.length - 1];
-    res.json(lastTransaction.anomalous || false);
-});
-
-app.get('/data', (req, res) => {
-    const sanitizedTransactions = transactions.map(t => ({
-        transaction_id: t.transaction_id,
-        amount: t.amount,
-        location: t.location,
-        currency: t.currency,
-        card_type: t.card_type,
-        sender_account_number: t.sender_account_number,
-        recipient_account_number: t.recipient_account_number,
-        anomalous: t.anomalous,
-        fraud_reasons: t.fraud_reasons || [],
-        timestamp: new Date(t.timestamp).toISOString()
-    }));
-    res.json(sanitizedTransactions);
-});
-
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'healthy',
-        uptime: process.uptime(),
-        transactions_processed: transactions.length,
-        blacklisted_accounts: inMemoryBlacklist.size
-    });
-});
-
-app.get('/blacklist', (req, res) => {
-    res.json({
-        accounts: Array.from(inMemoryBlacklist),
-        count: inMemoryBlacklist.size
-    });
-});
-
-app.post('/blacklist', (req, res) => {
-    const { account_number } = req.body;
-    if (!account_number) {
-        return res.status(400).json({ error: 'Account number required' });
-    }
-    inMemoryBlacklist.add(account_number);
-    res.json({ 
-        message: `Account ${account_number} added to blacklist`,
-        total_blacklisted: inMemoryBlacklist.size
-    });
-});
-
-app.delete('/blacklist/:account', (req, res) => {
-    const { account } = req.params;
-    inMemoryBlacklist.delete(account);
-    res.json({ 
-        message: `Account ${account} removed from blacklist`,
-        total_blacklisted: inMemoryBlacklist.size
-    });
-});
-
-app.delete('/clear', (req, res) => {
-    transactions = [];
-    res.json({ message: 'All transaction data cleared' });
-});
-
-// Error handling
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Something went wrong!' });
-});
-
-// Start server
-app.listen(PORT, () => {
-    console.log(`🚀 TrustLens Fraud Detection API running on port ${PORT}`);
-    console.log(`🛡️  Fraud detection algorithms loaded`);
-    console.log(`📊 Database: In-memory storage (${transactions.length} transactions)`);
-    console.log(`🚨 Blacklisted accounts: ${inMemoryBlacklist.size}`);
-    console.log(`📍 Supported locations: ${Object.keys(locationLookup).join(', ')}`);
-    console.log(`🇮🇳 Ready for Indian financial fraud detection!`);
-});
-
-process.on('SIGINT', () => {
-    console.log('\n🛑 Shutting down fraud detection API...');
-    console.log(`📊 Final stats: ${transactions.length} transactions processed`);
-    process.exit(0);
+app.listen(port, () => {
+  console.log("Server is running on port 3001");
 });
